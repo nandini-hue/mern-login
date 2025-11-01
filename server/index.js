@@ -1,43 +1,44 @@
+// server/index.js
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const authRoutes = require("./routes/auth"); // ✅ Authentication routes
-const userRoutes = require("./routes/user"); // ✅ User routes
+const authRoutes = require("./routes/auth");
+const userRoutes = require("./routes/user");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ Allowed frontend origins
+// Allowed frontend origin(s) — prefer setting FRONTEND_URL in production (Vercel)
 const allowedOrigins = [
-  "http://localhost:5173", // default Vite
-  "http://localhost:5174", // sometimes Vite changes port
-];
+  process.env.FRONTEND_URL,   // set this in Railway to your Vercel URL (production)
+  "http://localhost:5173",    // Vite dev default
+  "http://localhost:5174",    // alternative dev port
+].filter(Boolean); // removes undefined if FRONTEND_URL not set
 
-// ✅ Middleware
 app.use(
   cors({
     origin: function (origin, callback) {
+      // allow requests with no origin (e.g., Postman, server-to-server)
       if (!origin) return callback(null, true);
+
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS policy: Not allowed by server"));
+        return callback(null, true);
       }
+
+      console.warn("CORS blocked origin:", origin);
+      return callback(new Error("CORS policy: Not allowed by server"));
     },
     credentials: true,
   })
 );
+
 app.use(express.json());
 
-// ✅ Routes
-app.use("/api/auth", authRoutes); // signup, login
-app.use("/api/user", userRoutes); // get user info
-
-// ✅ Test route
+app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
 app.get("/api/ping", (req, res) => res.json({ ok: true, msg: "Server is running" }));
 
-// ✅ Connect MongoDB and start server
 mongoose.set("strictQuery", false);
 mongoose
   .connect(process.env.MONGO_URI)
